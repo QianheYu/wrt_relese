@@ -88,7 +88,7 @@ remove_unwanted_packages() {
         "smartdns" "mosdns" "adguardhome" "ddns-go" "naiveproxy" "shadowsocks-rust"
         "sing-box" "v2ray-core" "v2ray-geodata" "v2ray-plugin" "tuic-client"
         "chinadns-ng" "ipt2socks" "tcping" "trojan-plus" "simple-obfs"
-        "shadowsocksr-libev" "dae" "daed" "mihomo"
+        "shadowsocksr-libev" "dae" "daed" "mihomo" "geoview"
     )
     local small8_packages=(
         "ppp" "firewall" "dae" "daed" "daed-next" "libnftnl" "nftables" "dnsmasq"
@@ -121,10 +121,10 @@ update_golang() {
 
 install_small8() {
     ./scripts/feeds install -p small8 -f xray-core xray-plugin dns2tcp dns2socks haproxy hysteria \
-        naiveproxy shadowsocks-rust sing-box v2ray-core v2ray-geodata v2ray-plugin tuic-client \
-        chinadns-ng ipt2socks tcping trojan-plus simple-obfs shadowsocksr-libev luci-app-passwall \
-        alist luci-app-alist smartdns luci-app-smartdns v2dat mosdns luci-app-mosdns adguardhome \
-        luci-app-adguardhome ddns-go luci-app-ddns-go taskd luci-lib-xterm luci-lib-taskd \
+        naiveproxy shadowsocks-rust sing-box v2ray-core v2ray-geodata v2ray-geoview v2ray-plugin \
+        tuic-client chinadns-ng ipt2socks tcping trojan-plus simple-obfs shadowsocksr-libev \
+        luci-app-passwall alist luci-app-alist smartdns luci-app-smartdns v2dat mosdns luci-app-mosdns \
+        adguardhome luci-app-adguardhome ddns-go luci-app-ddns-go taskd luci-lib-xterm luci-lib-taskd \
         luci-app-store quickstart luci-app-quickstart luci-app-istorex luci-app-cloudflarespeedtest \
         luci-theme-argon netdata luci-app-netdata lucky luci-app-lucky luci-app-openclash mihomo \
         luci-app-mihomo luci-app-homeproxy
@@ -348,7 +348,7 @@ boot() {
 
     if [ -n "$wg_ifname" ]; then
         # 添加新的 wireguard_check 任务，每3分钟执行一次
-        echo "*/3 * * * * /sbin/wireguard_check.sh" >>/etc/crontabs/root
+        echo "*/10 * * * * /sbin/wireguard_check.sh" >>/etc/crontabs/root
         uci set system.@system[0].cronloglevel='9'
         uci commit system
         /etc/init.d/cron restart
@@ -371,12 +371,17 @@ add_wg_chk() {
 update_pw_ha_chk() {
     local pw_ha_path="$BUILD_DIR/feeds/small8/luci-app-passwall/root/usr/share/passwall/haproxy_check.sh"
     local new_path="$BASE_PATH/patches/haproxy_check.sh"
+    local ha_lua_path="$BUILD_DIR/feeds/small8/luci-app-passwall/root/usr/share/passwall/haproxy.lua"
 
     if [ -f "$pw_ha_path" ]; then
         rm -f "$pw_ha_path"
     fi
 
     install -m 755 -D "$new_path" "$pw_ha_path"
+
+    if [ -f $ha_lua_path ]; then
+        sed -i 's/rise 1 fall 3/rise 3 fall 2/g' "$ha_lua_path"
+    fi
 }
 
 main() {
